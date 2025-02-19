@@ -1,2 +1,2 @@
 # stat423-final
-https://www.kaggle.com/datasets/joannpineda/individual-age-of-death-and-related-factors?resource=download&select=data.json
+https://www.kaggle.com/code/prathamtripathi/death-prediction-ml/notebook

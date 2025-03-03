@@ -1,0 +1,14 @@
+```{r}
+## Change data term with desired data to get 
+## specific plot corresponding with changed data
+
+## Gives plot on probability of survival between 
+## doctor visits
+
+survfit2(Surv(time, DEATH_EVENT) ~ 1, data = data) %>%
+  ggsurvfit() + 
+  labs(
+    x = "Days",
+    y = "Overall Survival"
+  )
+```

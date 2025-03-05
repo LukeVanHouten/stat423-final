@@ -1,9 +1,9 @@
-```{r}
-## Change data term with desired data to get 
-## specific plot corresponding with changed data
+library(tidyverse)
+library(ggsurvfit)
+library(survival)
+library(survminer)
 
-## Gives plot on probability of survival between 
-## doctor visits
+data <- read.csv("heart_failure_clinical_records_dataset.csv")
 
 survfit2(Surv(time, DEATH_EVENT) ~ 1, data = data) %>%
   ggsurvfit() + 
@@ -11,6 +11,16 @@ survfit2(Surv(time, DEATH_EVENT) ~ 1, data = data) %>%
     x = "Days",
     y = "Overall Survival"
   )
+
+m = 500
+n = 299
+
+big_data = data.frame()
+
+for(i in 1:m){
+    indecies = sample(c(1:n), n, replace = TRUE)
+    big_data = rbind(big_data, data[indecies, ])
+}
 
 ### Wilson-Cox For each categorical variable
 res.cox = coxph(Surv(time, DEATH_EVENT) ~ ., data = big_data)
@@ -106,5 +116,3 @@ ggsurvplot(fit_smoking, data = smoking_df, coef.int = TRUE, legend.labs = c("Non
 
 
 
-
-```

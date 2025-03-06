@@ -1,0 +1,93 @@
+---
+title: "Lasso Regression Ejection"
+author: "Jonathan Kohout"
+date: "2025-03-06"
+output: pdf_document
+---
+
+```{r}
+library(readr)
+library(glmnet)
+```
+
+```{r}
+heart_failure <- read_csv("heart_failure_clinical_records_dataset.csv", 
+    col_types = cols(
+      anaemia = col_factor(levels = c("0", "1")), 
+      diabetes = col_factor(levels = c("0", "1")), 
+      high_blood_pressure = col_factor(levels = c("0", "1")), 
+      sex = col_factor(levels = c("0", "1")), 
+      smoking = col_factor(levels = c("0", "1")), 
+      DEATH_EVENT = col_factor(levels = c("0", "1"))))
+heart_failure$age <- log(heart_failure$age)
+heart_failure$creatinine_phosphokinase <- log(heart_failure$creatinine_phosphokinase)
+heart_failure$serum_creatinine <- log(heart_failure$serum_creatinine)
+```
+
+```{r}
+set.seed(100)
+R <- 1000
+boot_index_1000 <- sample(nrow(heart_new), R, replace=TRUE)
+boot_heart_1000 <- heart_new[boot_index_1000,]
+```
+
+```{r}
+set.seed(123)
+heart_failure <- boot_heart_10000
+
+X <- model.matrix(ejection_fraction ~ ., data = heart_failure)[,-1]
+Y <- heart_failure$ejection_fraction
+train <- sample(1:nrow(X), nrow(X)/2)
+test <- (-train)
+
+grid <- 10^seq(10, -2, length = 1000)
+
+lasso.model <- glmnet(X[train,], Y[train], alpha=1, lambda = grid)
+
+```
+
+```{r}
+coefficients <- matrix(NA, nrow = 12, ncol = 1000)
+  for (i in 1:12) {
+    for (j in 1:1000) {
+      coefficients[i, j] <- coef(lasso.model)[, j][i+1] #+1 because of the intercept
+  }
+}
+plot(log(grid), coefficients[1, ], type = "l",
+xlab = "log(lambda)", ylab="Coefficient",
+ylim = c(min(coefficients), max(coefficients)))
+for (i in 2:12) {
+  points(log(grid), coefficients[i, ], type = "l")
+}
+```
+
+```{r}
+MSE <- rep(NA, length(grid))
+for (i in 1:length(grid)) {
+  predictions <- predict(lasso.model, s = grid[i], newx = X[test,])
+  MSE[i] <- mean((predictions - Y[test])^2)
+}
+plot(log(grid), MSE, type="l", xlab="log(lambda)")
+```
+
+```{r}
+min(MSE)
+best_lambda <- grid[which.min(MSE)]
+best_lambda
+```
+
+```{r}
+cv.out <- cv.glmnet(X[train, ], Y[train], alpha = 1)
+plot(cv.out)
+```
+
+```{r}
+lambda <- cv.out$lambda.min
+lambda
+```
+
+```{r}
+predictions <- predict(lasso.model, s = lambda, newx = X[test,])
+test.error <- mean((predictions - Y[test])^2)
+test.error
+```

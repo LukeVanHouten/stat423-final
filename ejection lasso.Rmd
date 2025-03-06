@@ -33,7 +33,7 @@ boot_heart_1000 <- heart_new[boot_index_1000,]
 
 ```{r}
 set.seed(123)
-heart_failure <- boot_heart_10000
+heart_failure <- boot_heart_1000
 
 X <- model.matrix(ejection_fraction ~ ., data = heart_failure)[,-1]
 Y <- heart_failure$ejection_fraction

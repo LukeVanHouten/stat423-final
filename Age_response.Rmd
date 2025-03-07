@@ -12,7 +12,24 @@ The last two chunks is the final model labeled final model.
 
 
 ```{r}
+library(dplyr)
+
 death <- read_csv("~/Downloads/heart_failure_clinical_records_dataset.csv")
+death <- death %>% filter(DEATH_EVENT == 1)
+
+set.seed(123)
+R <- 1000
+boot_index_1000 <- sample(nrow(death), R, replace=TRUE)
+death <- death[boot_index_1000,]
+# boot_heart_1000$n <- 1:R
+
+R <- 10000
+boot_index_10000 <- sample(nrow(death), R, replace=TRUE)
+death <- death[boot_index_10000,]
+
+# boot_heart_10000$n <- 1:R
+
+
 
 #Box-cox for age with no trandsformation and lamda value
 fit.age <- lm(age~ejection_fraction+ creatinine_phosphokinase+platelets+serum_creatinine+serum_sodium, data=death)
@@ -21,16 +38,7 @@ title(main = "95% CI for the Box-Cox transform.")
 (lambda.hat <- bc$x[which.max(bc$y)])
 ```
 
-```{r}
-#since lambda is close to 0, we must log age,
-fit.age_log <- lm(log(age)~ejection_fraction+ creatinine_phosphokinase+ ejection_fraction+platelets+serum_creatinine+serum_sodium, data=death)
-summary(fit.age_log)
 
-#log boxCox should be 1 which is good
-boxCox(fit.age,family="yjPower")
-boxCox(fit.age_log,family="yjPower")
-
-```
 
 ```{r}
 #check improvement of age
@@ -39,8 +47,6 @@ par(mfrow = c(1, 2))
 hist(death$age, breaks = 30, main = "Histogram of Age", xlab = "Age", probability = TRUE)
 lines(density(death$age), lwd = 2)
 
-hist(log(death$age), breaks = 30, main = "Histogram of log(Age)", xlab = "log(Age)", probability = TRUE)
-lines(density(log(death$age)), lwd = 2)
 
 
 ```
@@ -66,19 +72,19 @@ for (var in continuous_vars) {
 par(mfrow = c(2, 3))
 
 for (var in continuous_vars) {
-  plot(death[[var]], log(death$age), main = paste("log(Age) vs", var), xlab = var, ylab = "log(Age)", pch = 19, col = "blue")
-  abline(lm(log(age) ~ death[[var]], data = death), col = "red", lwd = 2)
+  plot(death[[var]], (death$age), main = paste("Age vs", var), xlab = var, ylab = "Age", pch = 19, col = "blue")
+  abline(lm(age ~ death[[var]], data = death), col = "red", lwd = 2)
 }
 
 ```
 ```{r}
 
-#check residuals for log(age) vs independent continuous variables
+#check residuals for age vs independent continuous variables
 
 par(mfrow = c(2, 3))
 
 for (var in continuous_vars) {
-  plot(death[[var]], residuals(fit.age_log), 
+  plot(death[[var]], residuals(fit.age), 
        main = paste("Residuals vs", var), 
        xlab = var, 
        ylab = "Residuals", 
@@ -91,11 +97,12 @@ for (var in continuous_vars) {
 #log creatinine_phosphokinase and serum_creatinine, then see residual plots
 death$log_creatinine_phosphokinase <- log(death$creatinine_phosphokinase)
 death$log_serum_creatinine <- log(death$serum_creatinine)
+death$serum_sodium_3power <- (death$serum_sodium)^3
 
-fit_transformed <- lm(log(age) ~ ejection_fraction + log_creatinine_phosphokinase + platelets + log_serum_creatinine + serum_sodium, data = death)
+fit_transformed <- lm(age ~ ejection_fraction + log_creatinine_phosphokinase + platelets + log_serum_creatinine + serum_sodium_3power, data = death)
 
 par(mfrow = c(2, 3))
-trans_continuous_vars <- c("ejection_fraction", "log_creatinine_phosphokinase", "platelets", "log_serum_creatinine", "serum_sodium")
+trans_continuous_vars <- c("ejection_fraction", "log_creatinine_phosphokinase", "platelets", "log_serum_creatinine", "serum_sodium_3power")
 
 for (var in trans_continuous_vars) {
   plot(death[[var]], residuals(fit_transformed), 
@@ -115,6 +122,16 @@ for (var in trans_continuous_vars) {
   plot(death[[var]], log(death$age), main = paste("log(Age) vs", var), xlab = var, ylab = "log(Age)", pch = 19, col = "blue")
   abline(lm(log(age) ~ death[[var]], data = death), col = "red", lwd = 2)
 }
+```
+```{r}
+par(mfrow = c(2, 3))
+
+
+for (var in trans_continuous_vars) {
+  hist(death[[var]], breaks = 30, main = paste("Histogram of", var), xlab = var, probability = TRUE)
+  lines(density(death[[var]]), col = "red", lwd = 2)
+}
+
 ```
 
 ```{r}
@@ -158,98 +175,86 @@ par(mfrow = c(1, 1))
 ```{r}
 death_transformed <- death
 
-death_transformed$log_age <- log(death$age)  # Replace age with log(age)
 death_transformed$log_creatinine_phosphokinase <- log(death$creatinine_phosphokinase)
-death_transformed$log_serum_creatinine <- log(death$serum_creatinine)
+death_transformed$serum_creatinine <- log(death$serum_creatinine)
+death_transformed$serum_sodium_3power <- (death$serum_sodium)^3
 
-death_transformed$age <- NULL
+
+death_transformed$serum_sodium <- NULL
 death_transformed$creatinine_phosphokinase <- NULL
 death_transformed$serum_creatinine <- NULL
+death_transformed$DEATH_EVENT <- NULL
+death_transformed$log_serum_sodium <- NULL
 
-categorical_vars <- c("anaemia", "diabetes", "high_blood_pressure", "sex", "smoking", "DEATH_EVENT")
+
+categorical_vars <- c("anaemia", "diabetes", "high_blood_pressure", "sex", "smoking")
 
 death_transformed[categorical_vars] <- lapply(death_transformed[categorical_vars], as.factor)
 
+death_transformed
 
 ```
 
 ```{r}
-age_final_model <- lm(log_age ~ (.-DEATH_EVENT-time), data = death_transformed)
+age_final_model <- lm(age ~ (.-time), data = death_transformed)
+
 summary(age_final_model)
 ```
 
 
 ```{r}
-reduced_model <- lm(log_age ~ anaemia + ejection_fraction + high_blood_pressure + 
-           sex + log_serum_creatinine, data = death_transformed)
-summary(reduced_model)
-
-```
-```{r}
-
-
 best_model <- step(age_final_model, direction = "backward", test = "F")
 ```
 
-```{r}
-reduced_model <- lm(log_age ~ anaemia + ejection_fraction + high_blood_pressure + 
-           sex + log_serum_creatinine, data = death_transformed)
-anova(reduced_model, age_final_model)
-```
-
-```{r}
-summary(reduced_model)
-```
-
-```{r}
-reduced_model <- lm(log_age ~ anaemia + ejection_fraction +high_blood_pressure +log_serum_creatinine +
-           sex , data = death_transformed)
-summary(reduced_model)
-```
 
 
 
 ```{r}
-reduced_model_int <- lm(log_age ~ anaemia * ejection_fraction *high_blood_pressure *log_serum_creatinine *
-           sex , data = death_transformed)
+reduced_model_int <- lm(age ~ (.)^2, data = death_transformed)
 summary(reduced_model_int)
 ```
 ```{r}
-full_model <- lm(log_age ~ anaemia * ejection_fraction * high_blood_pressure * log_serum_creatinine * sex, 
-                 data = death_transformed)
-
-reduced_model <- step(full_model, direction = "backward", test = "F")
-
-anova(full_model, reduced_model)
-
-
-```
-
-```{r}
-# Fit the reduced model based on ANOVA results
-reduced_model_int <- lm(log_age ~ anaemia + ejection_fraction + high_blood_pressure + 
-                        log_serum_creatinine + sex + 
-                        anaemia:ejection_fraction + anaemia:high_blood_pressure + 
-                        ejection_fraction:high_blood_pressure + anaemia:log_serum_creatinine + 
-                        ejection_fraction:log_serum_creatinine + anaemia:sex + 
-                        ejection_fraction:sex + high_blood_pressure:sex + 
-                        anaemia:ejection_fraction:high_blood_pressure + 
-                        anaemia:ejection_fraction:log_serum_creatinine + 
-                        anaemia:ejection_fraction:sex + anaemia:high_blood_pressure:sex + 
-                        ejection_fraction:high_blood_pressure:sex + 
-                        anaemia:ejection_fraction:high_blood_pressure:sex, 
-                        data = death_transformed)
-
-# Summarize the model
-summary(reduced_model_int)
+reduced_model <- step(reduced_model_int, direction = "backward", test = "F")
 
 ```
 
 
 
+
+
 ```{r}
-fitted_values <- fitted(reduced_model_int)
-actual_values <- death_transformed$log_age
+reduced <- lm(formula = age ~ anaemia + diabetes + ejection_fraction + high_blood_pressure + 
+    platelets + sex + smoking + time + log_creatinine_phosphokinase + 
+    log_serum_creatinine + serum_sodium_3power + anaemia:diabetes + 
+    anaemia:ejection_fraction + anaemia:high_blood_pressure + 
+    anaemia:platelets + anaemia:sex + anaemia:smoking + anaemia:time + 
+    anaemia:log_creatinine_phosphokinase + anaemia:serum_sodium_3power + 
+    diabetes:ejection_fraction + diabetes:high_blood_pressure + 
+    diabetes:platelets + diabetes:sex + diabetes:smoking + diabetes:time + 
+    diabetes:log_creatinine_phosphokinase + diabetes:log_serum_creatinine + 
+    diabetes:serum_sodium_3power + ejection_fraction:high_blood_pressure + 
+    ejection_fraction:platelets + ejection_fraction:sex + ejection_fraction:smoking + 
+    ejection_fraction:time + ejection_fraction:log_creatinine_phosphokinase + 
+    ejection_fraction:log_serum_creatinine + ejection_fraction:serum_sodium_3power + 
+    high_blood_pressure:platelets + high_blood_pressure:sex + 
+    high_blood_pressure:smoking + high_blood_pressure:time + 
+    high_blood_pressure:log_creatinine_phosphokinase + high_blood_pressure:log_serum_creatinine + 
+    platelets:sex + platelets:smoking + platelets:time + platelets:log_serum_creatinine + 
+    platelets:serum_sodium_3power + sex:time + sex:log_creatinine_phosphokinase + 
+    sex:log_serum_creatinine + sex:serum_sodium_3power + smoking:time + 
+    smoking:log_creatinine_phosphokinase + smoking:log_serum_creatinine + 
+    smoking:serum_sodium_3power + time:log_creatinine_phosphokinase + 
+    time:log_serum_creatinine + log_creatinine_phosphokinase:log_serum_creatinine + 
+    log_creatinine_phosphokinase:serum_sodium_3power + log_serum_creatinine:serum_sodium_3power, data = death_transformed)
+summary(reduced)
+```
+
+
+
+
+```{r}
+fitted_values <- fitted(reduced)
+actual_values <- death_transformed$age
 
 plot(fitted_values, actual_values, 
      xlab = "Fitted Values", ylab = "Actual Values", 
@@ -258,70 +263,28 @@ plot(fitted_values, actual_values,
 abline(0, 1, col = "red", lwd = 2)  # Add y = x line for reference
 
 ```
+
+
 ```{r}
-fitted_values <- exp(fitted(reduced_model_int))
-actual_values <- exp(death_transformed$log_age) 
+par(mfrow = c(1, 2))
 
-plot(fitted_values, actual_values, 
-     xlab = "Predicted Age", ylab = "Actual Age", 
-     main = "Predicted vs. Actual Age",
-     col = "blue", pch = 16)
-abline(0, 1, col = "red", lwd = 2) 
-```
-```{r}
-reduced_model_int <- lm(log_age ~ anaemia+ ejection_fraction +high_blood_pressure +log_serum_creatinine +
-           sex , data = death_transformed)
-summary(reduced_model_int)
-```
-```{r}
-par(mfrow = c(2, 2))
+qqnorm(residuals(reduced), main = "QQ Plot of Residuals")
+qqline(residuals(reduced), col = "red", lwd = 2)
 
-plot(death_transformed$ejection_fraction, resid(reduced_model_int), 
-     main = "Residuals vs. Ejection Fraction", xlab = "Ejection Fraction", ylab = "Residuals", 
-     col = "blue", pch = 16)
-abline(h = 0, col = "red")
-
-plot(death_transformed$log_serum_creatinine, resid(reduced_model_int), 
-     main = "Residuals vs. Log Serum Creatinine", xlab = "Log Serum Creatinine", ylab = "Residuals", 
-     col = "blue", pch = 16)
-abline(h = 0, col = "red")
-
-```
-```{r}
-poly_model <- lm(log_age ~ anaemia * (ejection_fraction) *
-                 high_blood_pressure * poly(log_serum_creatinine, 2) * sex, 
-                 data = death_transformed)
-
-summary(poly_model)
+plot(fitted(reduced), residuals(reduced), 
+     main = "Residuals vs. Fitted Values", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals", 
+     pch = 19, col = "blue")
+abline(h = 0, col = "red", lwd = 2)
 
 ```
 
-```{r}
-reduced_model <- step(poly_model, direction = "backward", test = "F")
 
-```
 
-```{r}
-final_model <- lm(log_age ~ anaemia * high_blood_pressure * sex + 
-                  ejection_fraction * high_blood_pressure * poly(log_serum_creatinine, 2) + 
-                  ejection_fraction * high_blood_pressure * sex + 
-                  anaemia * ejection_fraction * sex, 
-                  data = death_transformed)
 
-summary(final_model)
 
-```
-```{r}
-fitted_values <- exp(fitted(final_model))
-actual_values <- exp(death_transformed$log_age) 
 
-plot(fitted_values, actual_values, 
-     xlab = "Predicted Age", ylab = "Actual Age", 
-     main = "Predicted vs. Actual Age",
-     col = "blue", pch = 16)
-abline(0, 1, col = "red", lwd = 2) 
-
-```
 
 
 

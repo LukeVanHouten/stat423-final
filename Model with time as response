@@ -1,0 +1,31 @@
+'''{r}
+library(bestNormalize)
+HF_dat_raw = read.csv("/Users/justinkoo/Downloads/final.csv")
+HF_dat = data.frame(age = HF_dat_raw$age,
+                    anaemia = as.factor(HF_dat_raw$anaemia),
+                    creatinine_posphokinase = log(HF_dat_raw$creatinine_phosphokinase),
+                    diabeates = as.factor(HF_dat_raw$diabetes),
+                    ejection_fraction = HF_dat_raw$ejection_fraction,
+                    high_blood_pressure = as.factor(HF_dat_raw$high_blood_pressure),
+                    platelets = HF_dat_raw$platelets,
+                    serum_creatinine = log(HF_dat_raw$serum_creatinine),
+                    serum_sodium = HF_dat_raw$serum_sodium,
+                    sex = as.factor(HF_dat_raw$sex),
+                    smoking = as.factor(HF_dat_raw$smoking),
+                    time = HF_dat_raw$time,
+                    DEATH_EVENT = as.factor(HF_dat_raw$DEATH_EVENT))
+
+new_HF_dat = HF_dat
+
+
+new_HF_dat$age = orderNorm(HF_dat_raw$age)$x.t
+new_HF_dat$creatinine_posphokinase = orderNorm(HF_dat_raw$creatinine_phosphokinase)$x.t
+new_HF_dat$platelets = orderNorm(HF_dat_raw$platelets)$x.t
+new_HF_dat$ejection_fraction = orderNorm(HF_dat_raw$ejection_fraction)$x.t
+new_HF_dat$serum_creatinine = orderNorm(HF_dat_raw$serum_creatinine)$x.t
+new_HF_dat$serum_sodium = orderNorm(HF_dat_raw$serum_sodium)$x.t
+new_HF_dat$time = orderNorm(HF_dat_raw$time)$x.t
+
+initial_model = lm(time ~ ., data = new_HF_dat)
+summary(step(initial_model))
+'''

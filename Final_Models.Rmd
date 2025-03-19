@@ -1,0 +1,524 @@
+---
+title: "Untitled"
+author: "Shubh Tandon"
+date: "2025-03-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr)
+library(car)
+library(MASS) 
+library(bestNormalize)
+
+```
+
+```{r}
+death <- read_csv("~/Downloads/heart_failure_clinical_records_dataset.csv")
+set.seed(123)
+R <- 1000
+boot_index_1000 <- sample(nrow(death), R, replace=TRUE)
+death <- death[boot_index_1000,]
+# boot_heart_1000$n <- 1:R
+
+R <- 10000
+boot_index_10000 <- sample(nrow(death), R, replace=TRUE)
+death <- death[boot_index_10000,]
+class(death)
+```
+
+```{r}
+par(mfrow = c(2, 3))
+
+continuous_vars <- c("ejection_fraction", "creatinine_phosphokinase", "platelets", "serum_creatinine", "serum_sodium","age")
+
+for (var in continuous_vars) {
+  hist(death[[var]], breaks = 30, main = paste("Histogram of", var), xlab = var, probability = TRUE)
+  lines(density(death[[var]]), col = "red", lwd = 2)
+}
+
+
+```
+
+```{r}
+
+fit.age <- lm(age~ejection_fraction+ creatinine_phosphokinase+platelets+serum_creatinine+serum_sodium, data=death)
+bc <- boxcox(fit.age)
+title(main = "95% CI for the Box-Cox transform.")
+(lambda.hat <- bc$x[which.max(bc$y)])
+
+
+```
+
+```{r}
+
+fit.age <- lm(ejection_fraction~ age+ creatinine_phosphokinase+platelets+serum_creatinine+serum_sodium, data=death)
+bc <- boxcox(fit.age)
+title(main = "95% CI for the Box-Cox transform.")
+(lambda.hat <- bc$x[which.max(bc$y)])
+
+
+```
+
+```{r}
+
+fit.creatinine_phosphokinase <- lm(creatinine_phosphokinase~ejection_fraction+ age +platelets+serum_creatinine+serum_sodium, data=death)
+bc <- boxcox(fit.creatinine_phosphokinase)
+title(main = "95% CI for the Box-Cox transform.")
+(lambda.hat <- bc$x[which.max(bc$y)])
+
+
+```
+
+```{r}
+fit.age <- lm(platelets~ejection_fraction+ creatinine_phosphokinase+age+serum_creatinine+serum_sodium, data=death)
+bc <- boxcox(fit.age)
+title(main = "95% CI for the Box-Cox transform.")
+(lambda.hat <- bc$x[which.max(bc$y)])
+
+
+```
+
+```{r}
+
+fit.age <- lm(serum_creatinine~ejection_fraction+ creatinine_phosphokinase+platelets+age+serum_sodium, data=death)
+bc <- boxcox(fit.age)
+title(main = "95% CI for the Box-Cox transform.")
+(lambda.hat <- bc$x[which.max(bc$y)])
+
+
+```
+
+```{r}
+library(MASS) 
+
+fit.age <- lm(serum_sodium~ejection_fraction+ creatinine_phosphokinase+platelets+age+serum_creatinine, data=death)
+bc <- boxcox(fit.age)
+title(main = "95% CI for the Box-Cox transform.")
+(lambda.hat <- bc$x[which.max(bc$y)])
+
+
+```
+
+```{r}
+age_test <- lm((age)~serum_sodium+ejection_fraction+ creatinine_phosphokinase+platelets+serum_creatinine, data=death)
+par(mfrow = c(1, 2))
+
+qqnorm(residuals(age_test), main = "QQ Plot of Residuals")
+qqline(residuals(age_test), col = "red", lwd = 2)
+
+plot(fitted(age_test), residuals(age_test), 
+     main = "Residuals vs. Fitted Values", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals", 
+     pch = 19, col = "blue")
+abline(h = 0, col = "red", lwd = 2)
+
+par(mfrow = c(1, 1))
+```
+
+```{r}
+creatinine_phosphokinase_test <- lm((creatinine_phosphokinase)~serum_sodium+ejection_fraction+platelets+serum_creatinine, data=death)
+par(mfrow = c(1, 2))
+
+qqnorm(residuals(creatinine_phosphokinase_test), main = "QQ Plot of Residuals")
+qqline(residuals(creatinine_phosphokinase_test), col = "red", lwd = 2)
+
+plot(fitted(creatinine_phosphokinase_test), residuals(creatinine_phosphokinase_test), 
+     main = "Residuals vs. Fitted Values", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals", 
+     pch = 19, col = "blue")
+abline(h = 0, col = "red", lwd = 2)
+
+par(mfrow = c(1, 1))
+```
+
+```{r}
+death_transformed <- death
+
+death_transformed$creatinine_phosphokinase <- log(death$creatinine_phosphokinase)
+death_transformed$serum_creatinine <- 1/(death$serum_creatinine)
+death_transformed$serum_sodium <- (death$serum_sodium)^2
+death_transformed$platelets <- (death$platelets)^.5
+death_transformed$ejection_fraction <- (death$ejection_fraction)^.5
+death_transformed$age <- log(death$age)
+
+
+
+categorical_vars <- c("anaemia", "diabetes", "high_blood_pressure", "sex", "smoking")
+
+death_transformed[categorical_vars] <- lapply(death_transformed[categorical_vars], as.factor)
+
+death_transformed
+```
+
+```{r}
+par(mfrow = c(2, 3))
+
+continuous_vars <- c("ejection_fraction", "creatinine_phosphokinase", "platelets", "serum_creatinine", "serum_sodium","age")
+
+for (var in continuous_vars) {
+  hist(death_transformed[[var]], breaks = 30, main = paste("Histogram of", var), xlab = var, probability = TRUE)
+  lines(density(death_transformed[[var]]), col = "red", lwd = 2)
+}
+
+```
+
+```{r}
+par(mfrow = c(2, 3))
+
+continuous_vars <- c("ejection_fraction", "creatinine_phosphokinase", "platelets", "serum_creatinine", "serum_sodium","age")
+
+for (var in continuous_vars) {
+  hist(death[[var]], breaks = 30, main = paste("Histogram of", var), xlab = var, probability = TRUE)
+  lines(density(death[[var]]), col = "red", lwd = 2)
+}
+```
+
+```{r}
+age_test <- lm(age~serum_sodium+ejection_fraction+ creatinine_phosphokinase+platelets+serum_creatinine, data=death_transformed)
+par(mfrow = c(1, 2))
+
+qqnorm(residuals(age_test), main = "QQ Plot of Residuals")
+qqline(residuals(age_test), col = "red", lwd = 2)
+
+plot(fitted(age_test), residuals(age_test), 
+     main = "Residuals vs. Fitted Values", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals", 
+     pch = 19, col = "blue")
+abline(h = 0, col = "red", lwd = 2)
+
+par(mfrow = c(1, 1))
+```
+
+```{r}
+#write.csv(death_transformed, "death_transformed.csv")
+creatinine_phosphokinase_test <- lm(creatinine_phosphokinase~serum_sodium+ejection_fraction+platelets+serum_creatinine, data=death_transformed)
+par(mfrow = c(1, 2))
+
+qqnorm(residuals(creatinine_phosphokinase_test), main = "QQ Plot of Residuals")
+qqline(residuals(creatinine_phosphokinase_test), col = "red", lwd = 2)
+
+plot(fitted(creatinine_phosphokinase_test), residuals(creatinine_phosphokinase_test), 
+     main = "Residuals vs. Fitted Values", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals", 
+     pch = 19, col = "blue")
+abline(h = 0, col = "red", lwd = 2)
+
+par(mfrow = c(1, 1))
+```
+
+```{r}
+death_transformed
+```
+
+```{r}
+death_transformed<- as.data.frame(death_transformed)
+class(death_transformed)
+
+death_transformed$time <- NULL
+death_age <- death_transformed %>% filter(DEATH_EVENT == 1)
+death_age$DEATH_EVENT <- NULL
+death_transformed$DEATH_EVENT <- NULL
+
+
+```
+
+```{r}
+
+fit.main <- lm(creatinine_phosphokinase ~ age + ejection_fraction + serum_creatinine + platelets + serum_sodium + anaemia + diabetes + high_blood_pressure + sex + smoking, data = death_transformed)
+fit.second <- lm(age ~  creatinine_phosphokinase+ ejection_fraction + serum_creatinine + platelets + serum_sodium + anaemia + diabetes + high_blood_pressure + sex + smoking, data = death_age)
+vif(fit.main)
+vif(fit.second)
+summary(fit.main)
+summary(fit.second)
+
+
+```
+
+We created two linear models, one for age and one for creatine phosphokinase (CPK). For both models, we removed the time variable because it only represented the time between checkups, and many individuals in the dataset had passed away between checkups. In our age model, we specifically filtered for individuals who had died in order to analyze age at death. For the creatine phosphokinase model, we removed the Death_Event variable, which indicates whether a person is alive or deceased, since living status is not a useful predictor of creatine phosphokinase levels.
+
+After preparing the data, we examined multicollinearity in the full models for both age and creatine phosphokinase by checking for highly correlated variables. We found that no variables had variance inflation factor (VIF) values higher than 1.3, so we were not concerned about multicollinearity being a significant issue. We then ran a full model including only the main effects. The adjusted R-square value for the creatine phosphokinase model was 0.071, while for the age model, it was 0.239. Both values were quite low, indicating that the models had limited explanatory power. Thus, We implemted a best mod function \*\*\*\*\*\* to find the best model with two interactions
+
+```{r}
+best_mod = function(data, response) {
+  new_dat = data
+  n = length(data)
+  for(i in 1:n) {
+    if(class(new_dat[,i]) == "numeric") {
+      data[,i] = bestNormalize(data[,i]) %>% predict()
+    }
+  }
+  form_1 = formula(paste(response, "~ (.^2)"))
+  initial_model = lm(form_1, data = data)
+  best_model = step(initial_model)
+  
+  return(best_model)
+}
+
+
+
+```
+
+```{r}
+library(dplyr)
+
+set.seed(123)  
+
+train_data <- death_age %>% sample_frac(.8)
+
+test_data <- anti_join(death_age, train_data, by = colnames(death_age))
+train_data <- as.data.frame(train_data) 
+test_data <- as.data.frame(test_data) 
+
+```
+
+```{r}
+set.seed(1)
+
+death_age$id <- 1:nrow(death_age)
+
+test_data <- death_age %>% dplyr::sample_frac(0.80)
+train_data  <- dplyr::anti_join(death_age, test_data, by = 'id')
+test_data$id <- NULL
+train_data$id <- NULL
+```
+
+```{r}
+death_transformed$id <- 1:nrow(death_transformed)
+train_data_cp <- death_transformed %>% dplyr::sample_frac(0.80)
+test_data_cp  <- dplyr::anti_join(death_transformed, train_data_cp, by = 'id')
+test_data_cp$id <- NULL
+train_data_cp$id <- NULL
+```
+
+```{r}
+age_model_train <- best_mod(train_data, "age")
+```
+
+```{r}
+creatinine_phosphokinase_model <- best_mod(train_data_cp, "creatinine_phosphokinase")
+```
+
+```{r}
+age_model_train <- lm(formula = age ~ anaemia + creatinine_phosphokinase + diabetes + ejection_fraction + 
+    high_blood_pressure + platelets + serum_creatinine + serum_sodium + 
+    sex + smoking + anaemia:ejection_fraction + anaemia:high_blood_pressure + 
+    anaemia:platelets + anaemia:serum_creatinine + anaemia:serum_sodium + 
+    anaemia:smoking + creatinine_phosphokinase:ejection_fraction + 
+    creatinine_phosphokinase:high_blood_pressure + creatinine_phosphokinase:platelets + 
+    creatinine_phosphokinase:serum_creatinine + creatinine_phosphokinase:sex + 
+    creatinine_phosphokinase:smoking + diabetes:ejection_fraction + 
+    diabetes:high_blood_pressure + diabetes:platelets + diabetes:serum_creatinine + 
+    diabetes:sex + diabetes:smoking + ejection_fraction:platelets + 
+    ejection_fraction:serum_creatinine + ejection_fraction:serum_sodium + 
+    ejection_fraction:sex + high_blood_pressure:platelets + high_blood_pressure:serum_creatinine + 
+    high_blood_pressure:serum_sodium + high_blood_pressure:sex + 
+    high_blood_pressure:smoking + platelets:serum_creatinine + 
+    platelets:serum_sodium + platelets:smoking + serum_creatinine:serum_sodium + 
+    serum_creatinine:sex + serum_sodium:sex + serum_sodium:smoking + 
+    sex:smoking, data = train_data)
+summary(age_model_train)
+test_predictions <- predict(age_model_train, newdata = test_data)
+SSE <- sum((test_data$age - test_predictions)^2)
+SST <- sum((test_data$age - mean(test_data$age))^2)
+R2_test <- 1 - (SSE / SST)
+
+n <- nrow(test_data)
+p <- length(coef(age_model_train)) - 1
+
+R2_adj_test <- 1 - ((1 - R2_test) * (n - 1) / (n - p - 1))
+
+cat("Test R-squared:", R2_test, ", ")
+cat("Adjusted Test R-squared:", R2_adj_test, "\n")
+
+```
+After filtering for only individuals who died during the study, our model ended up with 45 parameters on 605 degrees of freedom As seen in the regression output, 28 parameters are significant at at least the 5% level, highlighting the importance of the two-way interaction terms in capturing relationships between predictors. Our training adjusted R² is 0.658, while the test R² is 0.449, indicating a decline in predictive performance on unseen data. However, this model still outperforms a simple main-effects model, whose R² was only 0.239, demonstrating the value of incorporating interaction terms and best mode feature to explain variance in the data. While some overfitting is present, the model captures meaningful relationships that a simpler approach would miss.
+
+
+```{r}
+test_predictions <- predict(age_model_train, newdata = test_data)
+SSE <- sum((test_data$age - test_predictions)^2)
+SST <- sum((test_data$age - mean(test_data$age))^2)
+R2_test <- 1 - (SSE / SST)
+
+n <- nrow(test_data)
+p <- length(coef(age_model_train)) - 1
+
+R2_adj_test <- 1 - ((1 - R2_test) * (n - 1) / (n - p - 1))
+
+cat("Test R-squared:", R2_test, "\n")
+cat("Adjusted Test R-squared:", R2_adj_test, "\n")
+
+```
+
+```{r}
+par(mfrow = c(1, 2))
+
+qqnorm(residuals(age_model_train), main = "QQ Plot of Residuals")
+qqline(residuals(age_model_train), col = "red", lwd = 2)
+
+plot(fitted(age_model_train), residuals(age_model_train), 
+     main = "Residuals vs. Fitted Values", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals", 
+     pch = 19, col = "blue")
+abline(h = 0, col = "red", lwd = 2)
+
+par(mfrow = c(1, 1))
+```
+
+```{r}
+creatinine_phosphokinase_model <- lm(creatinine_phosphokinase ~ age + anaemia + diabetes + ejection_fraction + 
+    high_blood_pressure + platelets + serum_creatinine + serum_sodium + 
+    sex + smoking + age:anaemia + age:diabetes + age:ejection_fraction + 
+    age:high_blood_pressure + age:serum_creatinine + age:serum_sodium + 
+    age:smoking + anaemia:diabetes + anaemia:ejection_fraction + 
+    anaemia:high_blood_pressure + anaemia:platelets + anaemia:serum_creatinine + 
+    anaemia:sex + anaemia:smoking + diabetes:ejection_fraction + 
+    diabetes:high_blood_pressure + diabetes:serum_creatinine + 
+    diabetes:serum_sodium + diabetes:sex + ejection_fraction:high_blood_pressure + 
+    ejection_fraction:platelets + ejection_fraction:serum_creatinine + 
+    ejection_fraction:serum_sodium + ejection_fraction:sex + 
+    ejection_fraction:smoking + high_blood_pressure:platelets + 
+    high_blood_pressure:serum_creatinine + high_blood_pressure:serum_sodium + 
+    high_blood_pressure:sex + platelets:serum_creatinine + platelets:serum_sodium + 
+    platelets:smoking + serum_creatinine:serum_sodium + serum_creatinine:sex + 
+    serum_creatinine:smoking + serum_sodium:sex + sex:smoking, data = train_data_cp)
+summary(creatinine_phosphokinase_model)
+test_predictions <- predict(creatinine_phosphokinase_model, newdata = test_data_cp)
+SSE <- sum((test_data_cp$creatinine_phosphokinase - test_predictions)^2)
+SST <- sum((test_data_cp$creatinine_phosphokinase - mean(test_data_cp$creatinine_phosphokinase))^2)
+R2_test <- 1 - (SSE / SST)
+
+n <- nrow(test_data_cp)  
+p <- length(coef(creatinine_phosphokinase_model)) - 1  
+
+R2_adj_test <- 1 - ((1 - R2_test) * (n - 1) / (n - p - 1))
+MSE_test <- SSE / n
+
+cat("Test R-squared:", R2_test, ", ")
+cat("Adjusted Test R-squared:", R2_adj_test, ", ")
+cat("Test MSE:", MSE_test)
+```
+```{r}
+var(death_transformed$creatinine_phosphokinase
+)  
+
+```
+
+```{r}
+par(mfrow = c(2, 2), mar = c(4, 4, 1,1))
+
+
+
+qqnorm(residuals(age_model_train), main = "Final Age Train", xlab="")
+qqline(residuals(age_model_train), col = "red", lwd = 2)
+plot(fitted(age_model_train), residuals(age_model_train), 
+     main = "Final Age Model ",xlab="", ylab = "Residuals")
+abline(h = 0, col = "red", lwd = 2)
+
+
+
+qqnorm(residuals(creatinine_phosphokinase_model), main = "QQ Plot: CPK Model")
+qqline(residuals(creatinine_phosphokinase_model), col = "red", lwd = 2)
+plot(fitted(creatinine_phosphokinase_model), residuals(creatinine_phosphokinase_model), 
+     main = "Final CPK Model", xlab = "Fitted Values", ylab = "Residuals")
+abline(h=0, col = "red", lwd = 2)
+
+
+
+
+
+par(mfrow = c(1, 1))
+```
+Final Age Model and Creatine nphoskinase mode qq plots closely follow the red reference line. Althoguht their ends do bouth slighlty diverage from the abline we can see for the most part they are quite normal. The  age residual plot appears randomly scattered around zero, with no clear pattern, indicating that the model does not suffer from major heteroscedasticity. In addition the Creatine phonkinse model has some clustiring abour the red line and the their is more varition above 0 compared to beliver. However for the most part all the graph appear fairly normal without any extremly concercning flags that would suggest a major divergenc from normalty.
+
+The bottom-left QQ plot ("QQ Plot: CPK Model") similarly suggests that the residuals for the CPK model follow a normal distribution, as most points align well with the reference line. However, slight deviations in the tails may indicate minor non-normality. The bottom-right residuals vs. fitted plot ("Final CPK Model") shows a fairly dispersed pattern around zero, though some clustering in the center may suggest potential heteroscedasticity or an interaction effect that could be further investigated.
+
+Overall, both models demonstrate reasonable adherence to normality assumptions, though the CPK model may benefit from further refinement to improve residual distribution and homoscedasticity.
+
+```{r}
+
+leverage_values <- hatvalues(age_model_train)
+residuals <- residuals(age_model_train)
+p <- length(coef(age_model_train))
+n <- nrow(train_data)
+
+sigma_hat <- sqrt(sum(residuals^2) / (n - p))
+stand_resid <- residuals / (sigma_hat * sqrt(1 - leverage_values))
+
+leverage_threshold <- 2 * p / n  
+std_resid_threshold <- 3 
+
+outliers <- c()
+high_leverage <- c()
+
+for (i in 1:n) {
+  if (abs(stand_resid[i]) > std_resid_threshold) {
+    outliers <- c(outliers, i)
+  }
+  if (leverage_values[i] > leverage_threshold) {
+    high_leverage <- c(high_leverage, i)
+  }
+}
+
+if (length(outliers) > 0) {
+  cat("Outliers (Standardized Residuals > 2):", outliers, "\n")
+} else {
+  cat("No significant outliers detected.\n")
+}
+
+if (length(high_leverage) > 0) {
+  cat("High Leverage Points (Leverage > Threshold):", high_leverage, "\n")
+} else {
+  cat("No high leverage points detected.\n")
+}
+
+```
+
+
+```{r}
+creatinine_phosphokinase_test <- lm(creatinine_phosphokinase ~ serum_sodium + ejection_fraction + platelets + serum_creatinine, data = death)
+age_test <- lm(age ~ serum_sodium + ejection_fraction + creatinine_phosphokinase + platelets + serum_creatinine, data = death)
+
+par(mfrow = c(2, 4), mar = c(4, 4, 2,2))
+
+qqnorm(residuals(creatinine_phosphokinase_test), xlab="", main = "Pre-Transformation CPK")
+qqline(residuals(creatinine_phosphokinase_test), col = "red", lwd = 2)
+plot(fitted(creatinine_phosphokinase_test), residuals(creatinine_phosphokinase_test), 
+     main = "Pre-Transformation CPK",xlab="", ylab = "Residuals")
+abline(h = 0, col = "red", lwd = 2)
+
+qqnorm(residuals(creatinine_phosphokinase_model), xlab="", main = "QQ Plot: CPK Model")
+qqline(residuals(creatinine_phosphokinase_model), col = "red", lwd = 2)
+plot(fitted(creatinine_phosphokinase_model), residuals(creatinine_phosphokinase_model), 
+     main = "Final CPK Model", xlab="", ylab = "Residuals")
+abline(h = 0, col = "red", lwd = 2)
+
+qqnorm(residuals(age_test), main = "Pre-Transformation Age")
+qqline(residuals(age_test), col = "red", lwd = 2)
+plot(fitted(age_test), residuals(age_test), 
+     main = "Pre-Transformation Age", xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = "red", lwd = 2)
+
+qqnorm(residuals(age_model_train), main = "Final Age Train")
+qqline(residuals(age_model_train), col = "red", lwd = 2)
+plot(fitted(age_model_train), residuals(age_model_train), 
+     main = "Final Age Model ", xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = "red", lwd = 2)
+
+
+```
+```{r}
+AIC(lm(age~(.),data=test_data))
+AIC(age_model_train)
+AIC(lm(creatinine_phosphokinase~(.),data=train_data_cp))
+AIC(creatinine_phosphokinase_model)
+```
+
